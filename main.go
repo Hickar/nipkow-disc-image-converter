@@ -10,17 +10,22 @@ import (
 	"path"
 	"path/filepath"
 	"strconv"
+
+	"golang.org/x/image/bmp"
 )
 
 var (
 	inputFile        string  = "./input/mickey.mp4"
-	outputDir        string  = "./output"
+	outputDir        string  = "output"
 	outputFileFormat string  = "out%d.bmp"
 	tmpFile          string  = "./tmp/min.mp4"
+)
+
+var (
 	scaleWidth       int     = 64
 	scaleHeight      int     = 32
 	scaleRatio       float32 = 1 / 2
-	fps              int     = 15
+	fps              int     = 1
 )
 
 func execute(name string, arg ...string) error {
@@ -44,20 +49,8 @@ func execute(name string, arg ...string) error {
 	return nil
 }
 
-func minify(input, output, ratio string) error {
-	return execute("ffmpeg", "-i", input, "-vf", ratio, output)
-}
-
-func framify(input, output string, fps int) error {
-	return execute("ffmpeg", "-i", input, "-vf", fmt.Sprintf("fps=%d", fps), output)
-}
-
-func grayscale(input, output string) error {
-	return execute("ffmpeg", "-i", input, "-vf", "format=gray", output)
-}
-
 func main() {
-	ratio := fmt.Sprintf("scale=%d:%d,setdar=ratio=%.5f", scaleWidth, scaleHeight, scaleRatio)
+	ratio := fmt.Sprintf("scale=%d:%d,setdar=ratio=%f", scaleWidth, scaleHeight, scaleRatio)
 	err := minify(inputFile, tmpFile, ratio)
 	if err != nil {
 		log.Fatal(err)
@@ -76,16 +69,28 @@ func main() {
 
 	files, err := fs.ReadDir(fileSystem, outputDir)
 	for i, file := range files {
-		ext := filepath.Ext(file.Name())
-		inputFullPath := filepath.Join(outputDir, file.Name())
-		outputFullPath := filepath.Join(outputDir, strconv.Itoa(i)+ext)
-
-		matched, _ := filepath.Match("*out*.bmp", inputFullPath)
+		matched, _ := filepath.Match("out*.bmp", file.Name())
 		if matched {
+			ext := filepath.Ext(file.Name())
+			inputFullPath := filepath.Join(outputDir, file.Name())
+			outputFullPath := filepath.Join(outputDir, strconv.Itoa(i)+ext)
+
 			err := grayscale(inputFullPath, outputFullPath)
 			if err != nil {
-				log.Fatalf("Can't apply grayscale filter to %s:\n%s", inputFullPath, err)
+				log.Fatalf("can't apply grayscale filter to %s:\n%s", inputFullPath, err)
 			}
+
+			rawBMP, err := os.Open(outputFullPath)
+			if err != nil {
+				log.Fatalf("unexpected error during opening BMP file: %s", err)
+			}
+
+			image, err := bmp.Decode(rawBMP)
+			fmt.Print(image)
+			if err != nil {
+				log.Fatalf("unexpected error during BMP decoding: %s", err)
+			}
+
 		}
 	}
 }
