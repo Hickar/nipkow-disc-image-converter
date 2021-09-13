@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"image"
 	"io/fs"
 	"log"
 	"os"
@@ -15,17 +16,17 @@ import (
 )
 
 var (
-	inputFile        string  = "./input/mickey.mp4"
-	outputDir        string  = "output"
-	outputFileFormat string  = "out%d.bmp"
-	tmpFile          string  = "./tmp/min.mp4"
+	inputFile        string = "./input/mickey.mp4"
+	outputDir        string = "output"
+	outputFileFormat string = "out%d.bmp"
+	tmpFile          string = "./tmp/min.mp4"
 )
 
 var (
-	scaleWidth       int     = 64
-	scaleHeight      int     = 32
-	scaleRatio       float32 = 1 / 2
-	fps              int     = 1
+	scaleWidth  int     = 64
+	scaleHeight int     = 32
+	scaleRatio  float32 = 1 / 2
+	fps         int     = 1
 )
 
 func execute(name string, arg ...string) error {
@@ -40,18 +41,21 @@ func execute(name string, arg ...string) error {
 		log.Printf("stdErr: %s", stderr.String())
 		return err
 	}
+
 	if err := cmd.Wait(); err != nil {
-		log.Printf("stdErr: %s", stderr.String())
+		log.Printf("stdErr: %s\n", stderr.String())
 		return err
 	}
 
-	fmt.Printf("Stdout: %s", stdout.String())
+	fmt.Printf("stdOut: %s\n", stdout.String())
 	return nil
 }
 
 func main() {
+	output, err := os.OpenFile("output.bin", os.O_CREATE|os.O_WRONLY, 0777)
+
 	ratio := fmt.Sprintf("scale=%d:%d,setdar=ratio=%f", scaleWidth, scaleHeight, scaleRatio)
-	err := minify(inputFile, tmpFile, ratio)
+	err = minify(inputFile, tmpFile, ratio)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -85,12 +89,22 @@ func main() {
 				log.Fatalf("unexpected error during opening BMP file: %s", err)
 			}
 
-			image, err := bmp.Decode(rawBMP)
-			fmt.Print(image)
+			bmpBytes, err := bmp.Decode(rawBMP)
 			if err != nil {
 				log.Fatalf("unexpected error during BMP decoding: %s", err)
 			}
 
+			img, ok := bmpBytes.(*image.Paletted)
+			if !ok {
+				log.Fatalf("error on image type assertion: %s", file.Name())
+			}
+
+			at, err := output.WriteAt(img.Pix, int64(i*2048))
+			if err != nil {
+				log.Fatalf("error during writing to output file at %d: %s", at, err)
+			}
+			fmt.Printf("output at: %d\n", at)
+			fmt.Printf("written overall:%d\n\n", int64(i*2048))
 		}
 	}
 }
