@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"image"
-	"log"
 	"os"
 
 	"golang.org/x/image/bmp"
@@ -22,7 +21,7 @@ func loadBMP(filepath string) (*image.Paletted, error) {
 
 	img, ok := bmpBytes.(*image.Paletted)
 	if !ok {
-		log.Fatalf("error on image type assertion: %s", filepath)
+		return nil, fmt.Errorf("error on image type assertion: %s", filepath)
 	}
 
 	return img, nil

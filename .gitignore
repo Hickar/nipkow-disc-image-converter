@@ -2,6 +2,10 @@
 .idea
 .vscode
 
+build
+
+*.bin
+*.mp4
 *.sh
 input
 output
